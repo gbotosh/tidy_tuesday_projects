@@ -1,0 +1,78 @@
+---
+title: "TIDY TUESDAY: SHAKESPEARE PLAYS 2024-09-17"
+author: "Olaoluwa Gbotoso"
+format: html
+editor: visual
+---
+
+```{r}
+# Load the required packages
+if(!require("pacman")) install.packages(("pacman"))
+pacman::p_load(tidyverse, here, stringr)
+```
+
+
+
+```{r}
+# Load dataset
+hamlet <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-09-17/hamlet.csv')
+macbeth <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-09-17/macbeth.csv')
+romeo_juliet <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-09-17/romeo_juliet.csv')
+```
+
+
+
+```{r}
+# Create number of words per dialogue column
+hamlet <- hamlet |> 
+            mutate(num_dialogue_words = sapply(str_split(dialogue, " "), length),
+                   play = "Hamlet")
+romeo_juliet <- romeo_juliet |> 
+                  mutate(num_dialogue_words = sapply(str_split(dialogue, " "), length), 
+                         play = "Romeo and Juliet")
+macbeth <- macbeth |> 
+             mutate(num_dialogue_words = sapply(str_split(dialogue, " "), length),
+                    play = "Macbeth")
+# Combining all datasets into one dataframe
+shakespeare_plays <- bind_rows(hamlet, macbeth, romeo_juliet)
+
+# Get total number of words for each character 5top 10)
+shakespeare_plays_word_counts <- shakespeare_plays |> 
+                                   filter(character != "Stage Directions")  |> 
+                                   group_by(play, character) |>   
+                                   summarise(word_count = sum(num_dialogue_words)) |>  
+                                   arrange(desc(word_count)) |> 
+                                   head(10)
+
+```
+
+
+
+```{r}
+# Lolipop Chart
+ggplot(shakespeare_plays_word_counts, 
+        aes(x = reorder(character, word_count), y = word_count, colour = play)) + 
+   geom_point(size=5) + 
+   geom_segment(aes(x= reorder(character, word_count), 
+                    xend= reorder(character, word_count), 
+                    y=0, 
+                    yend= word_count), lwd = 2) + 
+   coord_flip() +
+   labs(title = "Top 10 Character with the Most Dialogue Words Across Plays",
+        x = "Character", 
+        y = "Number of Dialogue Words", fill = "Play",
+        color = "Play") +
+   theme_minimal() +
+   theme(plot.background = element_rect(fill = "#f2c988"),
+                  panel.grid = element_blank(),
+         plot.title = element_text(size = 12, face = "bold", color = "#323232"),
+         axis.title.x = element_text(color = "black", face = "bold", size = 10),
+         axis.title.y = element_text(color = "black", face = "bold", size = 10),
+         axis.text.x = element_text(color = "black", face = "bold", size = 10),
+         axis.text.y = element_text(color = "black", face = "bold", size = 10),
+         legend.title = element_text(face = "bold"),
+         legend.text = element_text(face = "bold"))
+# Save plot in png format
+ ggsave(here("image/shakespeare.png"), width = 10, height = 5)
+```
+
