@@ -9,7 +9,7 @@ editor: visual
 ```{r}
 # Load the required packages
 if(!require("pacman")) install.packages(("pacman"))
-pacman::p_load(tidyverse, here, stringr)
+pacman::p_load(tidyverse, here, ggthemes, scales, patchwork)
 ```
 
 
@@ -18,29 +18,44 @@ country_results_df <- readr::read_csv('https://raw.githubusercontent.com/rfordat
 individual_results_df <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-09-24/individual_results_df.csv')
 timeline_df <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-09-24/timeline_df.csv')
 
-# write_csv(country_results_df, "country_results_df.csv")
-# write_csv(individual_results_df, "individual_results_df.csv")
-# write_csv(timeline_df, "timeline_df.csv")
+write_csv(country_results_df, here("data/country_results_df.csv"))
+write_csv(individual_results_df, here("data/individual_results_df.csv"))
+write_csv(timeline_df, here("data/timeline_df.csv"))
 ```
 
 
 
 ```{r}
+# Data exploration
 head(country_results_df)
 head(individual_results_df)
 head(timeline_df)
+
+str(country_results_df)
+str(individual_results_df)
+str(timeline_df)
+
+summary(country_results_df)
+summary(individual_results_df)
+summary(timeline_df)
 ```
 
-```{r}
-top_20_countries_by_participants <- country_results_df |> 
-  group_by(country) |> 
-  summarise(total_team_size = sum(team_size_all, na.rm = T),
-           male = sum(team_size_male, na.rm = T),
-            female = sum(team_size_female, na.rm = T)) |> 
-            arrange(desc(total_team_size)) |> 
-            head(20)
 
+```{r}
+# Data wrangling
+
+# Dataframe for stacked area chart
 timeline_df_long <- timeline_df |> 
+                 pivot_longer(cols = c("male_contestant", "female_contestant"),
+                              names_to = "gender",
+                              values_to = "count")
+
+# Dataframe for line plot
+female_proportion_df <- timeline_df |> 
+  mutate(female_percent = female_contestant / all_contestant)
+
+# Dataframe for the pyramid plot
+timeline_df_long_1990_later <- timeline_df |> 
   filter(year >= 1990) |> 
  pivot_longer(
     cols = c(male_contestant, female_contestant),
@@ -48,325 +63,88 @@ timeline_df_long <- timeline_df |>
     values_to = "count")|>
   mutate(count = ifelse(gender == "female_contestant", -count, count))
 
-
-
-individual_results_df |> 
-  group_by(country) |> 
-  summarise(total = n()) |> 
-  arrange(desc(total))
-
+timeline_df_long_1990_later$year <- as.factor(timeline_df_long_1990_later$year)
 
 ```
 
 
 
 ```{r}
-gender_by_country_summary <- timeline_df |>
-  group_by(country) |>
-  summarize(
-    male = sum(male_contestant, na.rm = TRUE),
-    female = sum(female_contestant, na.rm = TRUE),
-    total_contestants = male + female
-  ) |>
-  ungroup() |>
-  arrange(desc(total_contestants))
-```
+# Stacked area plot
 
-
-```{r}
-timeline_long <- pivot_longer(timeline_df, cols = c("male_contestant", "female_contestant"),
-                                     names_to = "gender", values_to = "count")
-
-
-area_chart <- ggplot(timeline_long, aes(x = year, y = count, fill = gender)) +
-  geom_area(alpha = 0.7) +
-  scale_fill_manual(values = c("male_contestant" = "#D95F02", "female_contestant" = "#1B9E77")) +
-  labs(subtitle = "Contestants Gender Representation Over Time",
-       x = "Year",
-       y = "Number of Contestants") +
-  theme_tufte()+
-  theme(plot.background = element_rect(fill = "#F0F0F0", color = NA),  # Light gray background
-        panel.background = element_rect(fill = "#F0F0F0", color = NA),
-         plot.subtitle = element_text(hjust = 0, size = 12, face = "bold", color = "#323232"),
-        #plot.title = element_text(hjust = 0.5),  # Center the title
-        axis.ticks = element_blank(),
-        axis.title.y = element_blank(),
-        legend.position = "none")
-```
-
-```{r}
-top_10_edition_year_female_proportion <- timeline_df |> 
-  mutate(female_percent = female_contestant / all_contestant) |> 
-  arrange(desc(female_percent)) |> 
-  head(10) |> 
-  pull(year)
-
-timeline_df |> 
-  mutate(female_percent = female_contestant / all_contestant) |> 
-  filter(year %in% top_10_edition_year_female_proportion) |> 
-  arrange(desc(female_percent)) |> 
-  pivot_longer(cols = c(male_contestant, female_contestant), 
-               names_to = "gender", values_to = "count") |> 
-  ggplot(aes(x = reorder(year, -female_percent), y = count, fill = gender)) +
-  geom_bar(stat = "identity", position = "fill")
-```
-
-```{r}
-female_proportion_plot <- timeline_df |> 
-  mutate(female_percent = female_contestant / all_contestant) |> 
-  ggplot(aes(x = year, y = female_percent)) +
-  geom_line() +
-  labs(subtitle = "Proportion of Female Contestants over Time",
-       x = "Year", 
-       y = "Proportion of Female") +
-  theme_tufte() +
-  theme(plot.background = element_rect(fill = "#F0F0F0", color = NA),  # Light gray background
-        panel.background = element_rect(fill = "#F0F0F0", color = NA),
-         plot.subtitle = element_text(hjust = 0, size = 12, face = "bold", color = "#323232"),
-        #plot.title = element_text(hjust = 0.5),  # Center the title
-        axis.ticks = element_blank(),
-        axis.title.y = element_blank())
+area_chart <- timeline_df_long |> 
+              ggplot(aes(x = year, y = count, fill = gender)) +
+              geom_area(alpha = 0.7) +
+              scale_fill_manual(values = c("male_contestant" = "#D95F02", "female_contestant" = "#1B9E77")) +
+              labs(subtitle = "Contestants Gender Representation Over Time",
+                   x = "Year") +
+              theme_tufte() +
+              theme(plot.background = element_rect(fill = "#F0F0F0", color = NA),  # Light gray background
+                    panel.background = element_rect(fill = "#F0F0F0", color = NA),
+                    plot.subtitle = element_text(hjust = 0, size = 12, face = "bold", color = "#323232"),
+                    #plot.title = element_text(hjust = 0.5),  # Center the title
+                    axis.ticks = element_blank(),
+                    axis.title.y = element_blank(),
+                    legend.position = "none")
 ```
 
 
 
-
 ```{r}
-top_20_countries_by_participants_long <- top_20_countries_by_participants |> 
-  pivot_longer(cols = c(male, female), names_to = "gender", values_to = "count")|>
-  mutate(count = ifelse(gender == "female", -count, count))
-library(ggthemes)
-
-
-
-
-# X Axis Breaks and Labels 
-brks <- seq(-100, 0, 500)
-lbls = paste0(as.character(c(seq(15, 0, -5), seq(5, 15, 5))), "m")
-
-timeline_df_long$edition <- as.factor(timeline_df_long$edition)
-
-# Plot
-ggplot(timeline_df_long, aes(x = edition, y = count, fill = gender)) +   # Fill column
-                              geom_bar(stat = "identity", width = .6) +   # draw the bars
-                              scale_y_continuous(breaks = seq(-1000, 1000, by = 500),
-    labels = scales::comma_format(),
-    limits = c(-1200, 1600)) + # Labels
-                              #coord_flip() +  # Flip axes
-                              labs(title="Country by Gender") +
-                              theme_tufte() +  # Tufte theme from ggfortify
-                              theme(plot.title = element_text(hjust = .5), 
-                                    axis.ticks = element_blank()) +   # Centre plot title
-                              scale_fill_brewer(palette = "Dark2")  # Color palette
-```
-```{r}
-library(ggplot2)
-library(scales)
-timeline_df_long$year <- as.factor(timeline_df_long$year)
-
-# Plot
-ggplot(timeline_df_long, aes(x = year, y = count, fill = gender)) +   # Fill column
-  geom_bar(stat = "identity", width = 0.9) +   # draw the bars
-  # Adding labels outside the bars
-  geom_text(aes(label = comma(abs(count))),
-    position = position_nudge(y = ifelse(timeline_df_long$gender == "female_contestant", -50, 50)),
-    size = 3.6, hjust = ifelse(timeline_df_long$gender == "female_contestant", 1, 0)
-  ) +
-  # Adding a single country label next to the bars
-  geom_text(aes(y = -400, label = year), # Position countries next to the bars
-    size = 3.6, hjust = 0.5, vjust = 0) +
-  scale_y_continuous(breaks = c(-100, 0, 600),
-                     #labels = scales::comma_format(),
-                     limits = c(-1200, 1600)) +  # Labels
-  coord_flip() +
-  labs(title = "Contestants by Gender from Year 1990",
-       fill = "Gender") +
-  theme_tufte() +  # Tufte theme from ggfortify
-  theme(plot.background = element_rect(fill = "#F0FFF0", color = NA),  # Light gray background
-        panel.background = element_rect(fill = "#F0FFF0", color = NA),
-         plot.title = element_text(hjust = 0.5, size = 15, face = "bold", color = "#323232"),
-        #plot.title = element_text(hjust = 0.5),  # Center the title
-        axis.ticks = element_blank(),
-        axis.text.y = element_blank(),
-        axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 1),  # Rotate x-axis labels for readability
-        axis.title.y = element_blank(),  # Remove x-axis title
-        axis.title.x = element_blank(),  # Remove x-axis title
-        axis.text.x.bottom = element_text(vjust = 1),
-        legend.position = c(0.8, 0.5)) +  # Move x-axis text closer to the y = 0 line
-  #scale_fill_brewer(palette = "Dark2")  # Color palette
-  scale_fill_manual(values = c("#1B9E77", "#D95F02"),
-                    labels = c("Female", "Male"))
-
-# Save plot with larger dimensions
-ggsave("country_by_gender_plot.png", width = 12, height = 8)  # Customize width and height
-
-
+female_proportion_plot <- female_proportion_df |> 
+                            ggplot(aes(x = year, y = female_percent)) +
+                            geom_line() +
+                            labs(subtitle = "Proportion of Female Contestants over Time",
+                                 x = "Year") +
+                            theme_tufte() +
+                            theme(plot.background = element_rect(fill = "#F0F0F0", color = NA),  
+                            panel.background = element_rect(fill = "#F0F0F0", color = NA),
+                            plot.subtitle = element_text(hjust = 0, 
+                                                         size = 12, 
+                                                         face = "bold", 
+                                                         color = "#323232"),
+                            #plot.title = element_text(hjust = 0.5),  # Center the title
+                            axis.ticks = element_blank(),
+                            axis.title.y = element_blank())
 ```
 
-```{r}
-library(ggplot2)
-library(scales)
-timeline_df_long$year <- as.factor(timeline_df_long$year)
 
-# Plot
-pyramid_plot <- ggplot(timeline_df_long, aes(x = year, y = count, fill = gender)) +   # Fill column
-  geom_bar(stat = "identity", width = 0.9) +   # draw the bars
-  # Adding labels outside the bars
-  geom_text(aes(label = comma(abs(count))),
-    position = position_nudge(y = ifelse(timeline_df_long$gender == "female_contestant", -50, 50)),
-    size = 3.6, hjust = ifelse(timeline_df_long$gender == "female_contestant", 1, 0)
-  ) +
-  # Adding a single country label next to the bars
-  geom_text(aes(y = -400, label = year), # Position countries next to the bars
-    size = 3.6, hjust = 0.5, vjust = 0) +
-  scale_y_continuous(breaks = c(-100, 0, 600), labels = abs, 
-                     #labels = scales::comma_format(),
-                     limits = c(-1200, 1600)) +  # Labels
-  coord_flip() +
-  labs(subtitle = "Contestants by Gender from Year 1990",
-       fill = "Gender") +
-  theme_tufte() +  # Tufte theme from ggfortify
-  theme(plot.background = element_rect(fill = "#F0F0F0", color = NA),  # Light gray background
-        panel.background = element_rect(fill = "#F0F0F0", color = NA),
-         plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold", color = "#323232"),
-        #plot.title = element_text(hjust = 0.5),  # Center the title
-        axis.ticks = element_blank(),
-        axis.text.y = element_blank(),
-        axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 1),  # Rotate x-axis labels for readability
-        axis.title.y = element_blank(),  # Remove x-axis title
-        axis.title.x = element_blank(),  # Remove x-axis title
-        axis.text.x.bottom = element_text(vjust = 1),
-        legend.position = c(0.8, 0.5)) +  # Move x-axis text closer to the y = 0 line
-  #scale_fill_brewer(palette = "Dark2")  # Color palette
-  scale_fill_manual(values = c("#1B9E77", "#D95F02"),
-                    labels = c("Female", "Male"))
-
-# Save plot with larger dimensions
-ggsave("country_by_gender_plot.png", width = 12, height = 8)  # Customize width and height
-
-
-```
 
 ```{r}
-library(ggplot2)
-library(scales)
-timeline_df_long$year <- as.factor(timeline_df_long$year)
-
-# Plot
-ggplot(timeline_df_long, aes(x = year, y = count, fill = gender)) +   # Fill column
-  geom_bar(stat = "identity", width = 0.9) +   # draw the bars
-  # Adding labels outside the bars
-  geom_text(aes(label = comma(abs(count))),
-    position = position_nudge(y = ifelse(timeline_df_long$gender == "female_contestant", -50, 50)),
-    size = 3.6, hjust = ifelse(timeline_df_long$gender == "female_contestant", 1, 0)
-  ) +
-  # Adding a single country label next to the bars
-  geom_text(aes(y = -400, label = year), # Position countries next to the bars
-    size = 3.6, hjust = 0.5, vjust = 0) +
-  scale_y_continuous(breaks = c(-100, 0, 600),
-                     #labels = scales::comma_format(),
-                     limits = c(-1200, 1600)) +  # Labels
-  coord_flip() +
-  labs(title = "Contestants by Gender from Year 1990",
-       fill = "Gender") +
-  theme_tufte() +  # Tufte theme from ggfortify
-  theme(plot.background = element_rect(fill = "#E3F2FD", color = NA),  # Light gray background
-        panel.background = element_rect(fill = "#E3F2FD", color = NA),
-         plot.title = element_text(hjust = 0.5, size = 15, face = "bold", color = "#323232"),
-        #plot.title = element_text(hjust = 0.5),  # Center the title
-        axis.ticks = element_blank(),
-        axis.text.y = element_blank(),
-        axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 1),  # Rotate x-axis labels for readability
-        axis.title.y = element_blank(),  # Remove x-axis title
-        axis.title.x = element_blank(),  # Remove x-axis title
-        axis.text.x.bottom = element_text(vjust = 1),
-        legend.position = c(0.8, 0.5)) +  # Move x-axis text closer to the y = 0 line
-  #scale_fill_brewer(palette = "Dark2")  # Color palette
-  scale_fill_manual(values = c("#1B9E77", "#D95F02"),
-                    labels = c("Female", "Male"))
-
-# Save plot with larger dimensions
-ggsave("country_by_gender_plot.png", width = 12, height = 8)  # Customize width and height
-
-```
-```{r}
-library(ggplot2)
-library(scales)
-timeline_df_long$year <- as.factor(timeline_df_long$year)
-
-# Plot
-ggplot(timeline_df_long, aes(x = year, y = count, fill = gender)) +   # Fill column
-  geom_bar(stat = "identity", width = 0.9) +   # draw the bars
-  # Adding labels outside the bars
-  geom_text(aes(label = comma(abs(count))),
-    position = position_nudge(y = ifelse(timeline_df_long$gender == "female_contestant", -50, 50)),
-    size = 3.6, hjust = ifelse(timeline_df_long$gender == "female_contestant", 1, 0)
-  ) +
-  # Adding a single country label next to the bars
-  geom_text(aes(y = -400, label = year), # Position countries next to the bars
-    size = 3.6, hjust = 0.5, vjust = 0) +
-  scale_y_continuous(breaks = c(-100, 0, 600),
-                     #labels = scales::comma_format(),
-                     limits = c(-1200, 1600)) +  # Labels
-  coord_flip() +
-  labs(title = "Contestants by Gender from Year 1990",
-       fill = "Gender") +
-  theme_tufte() +  # Tufte theme from ggfortify
-  theme(plot.background = element_rect(fill = "#FAF3DD", color = NA),  # Light gray background
-        panel.background = element_rect(fill = "#FAF3DD", color = NA),
-         plot.title = element_text(hjust = 0.5, size = 15, face = "bold", color = "#323232"),
-        #plot.title = element_text(hjust = 0.5),  # Center the title
-        axis.ticks = element_blank(),
-        axis.text.y = element_blank(),
-        axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 1),  # Rotate x-axis labels for readability
-        axis.title.y = element_blank(),  # Remove x-axis title
-        axis.title.x = element_blank(),  # Remove x-axis title
-        axis.text.x.bottom = element_text(vjust = 1),
-        legend.position = c(0.8, 0.5)) +  # Move x-axis text closer to the y = 0 line
-  #scale_fill_brewer(palette = "Dark2")  # Color palette
-  scale_fill_manual(values = c("#1B9E77", "#D95F02"),
-                    labels = c("Female", "Male"))
+# Pyramid plot
+pyramid_plot <- timeline_df_long_1990_later |> 
+                ggplot(aes(x = year, y = count, fill = gender)) +   # Fill column
+                geom_bar(stat = "identity", width = 0.9) +   # draw the bars
+                # Adding labels outside the bars
+                geom_text(aes(label = comma(abs(count))),
+                position = position_nudge(y = ifelse(                                                                                                           timeline_df_long_1990_later$gender == "female_contestant",                                                    -50, 50)),
+                           size = 3.6, 
+                           hjust = ifelse(timeline_df_long_1990_later$gender == "female_contestant", 1, 0)) +
+                # Adding a year label next to the bars
+                geom_text(aes(y = -400, label = year), # Position year next to the bars
+                          size = 3.6, 
+                          hjust = 0.5, 
+                          vjust = 0) +
+                scale_y_continuous(breaks = c(-100, 0, 600), 
+                                   labels = abs, 
+                                   limits = c(-1200, 1600)) +  # Labels
+                coord_flip() +
+                labs(subtitle = "Contestants by Gender from Year 1990",
+                     fill = "Gender") +
+                theme_tufte() +  
+                theme(plot.background = element_rect(fill = "#F0F0F0", color = NA),  
+                      panel.background = element_rect(fill = "#F0F0F0", color = NA),
+                      plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold", color = "#323232"),
+                axis.ticks = element_blank(),
+                axis.text.y = element_blank(),
+                axis.title.y = element_blank(),  # Remove x-axis title
+                axis.title.x = element_blank(),  # Remove x-axis title
+                axis.text.x.bottom = element_text(vjust = 1),
+                legend.position = c(0.8, 0.5)) +  
+                scale_fill_manual(values = c("#1B9E77", "#D95F02"),
+                                  labels = c("Female", "Male"))
 
 
-```
-
-```{r}
-library(ggplot2)
-library(scales)
-timeline_df_long$year <- as.factor(timeline_df_long$year)
-
-# Plot
-ggplot(timeline_df_long, aes(x = year, y = count, fill = gender)) +   # Fill column
-  geom_bar(stat = "identity", width = 0.9) +   # draw the bars
-  # Adding labels outside the bars
-  geom_text(aes(label = comma(abs(count))),
-    position = position_nudge(y = ifelse(timeline_df_long$gender == "female_contestant", -50, 50)),
-    size = 3.6, hjust = ifelse(timeline_df_long$gender == "female_contestant", 1, 0)
-  ) +
-  # Adding a single country label next to the bars
-  geom_text(aes(y = -400, label = year), # Position countries next to the bars
-    size = 3.6, hjust = 0.5, vjust = 0) +
-  scale_y_continuous(breaks = c(-100, 0, 600), labels = abs,
-                     #labels = scales::comma_format(),
-                     limits = c(-1200, 1600)) +  # Labels
-  coord_flip() +
-  labs(subtitle = "Contestants by Gender from Year 1990",
-       fill = "Gender") +
-  theme_tufte() +  # Tufte theme from ggfortify
-  theme(plot.background = element_rect(fill = "#FFFFFF", color = NA),  # Light gray background
-        panel.background = element_rect(fill = "#FFFFFF", color = NA),
-         plot.title = element_text(hjust = 0.5, size = 15, face = "bold", color = "#323232"),
-        #plot.title = element_text(hjust = 0.5),  # Center the title
-        axis.ticks = element_blank(),
-        axis.text.y = element_blank(),
-        axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 1),  # Rotate x-axis labels for readability
-        axis.title.y = element_blank(),  # Remove x-axis title
-        axis.title.x = element_blank(),  # Remove x-axis title
-        axis.text.x.bottom = element_text(vjust = 1),
-        legend.position = c(0.8, 0.5)) +  # Move x-axis text closer to the y = 0 line
-  #scale_fill_brewer(palette = "Dark2")  # Color palette
-  scale_fill_manual(values = c("#1B9E77", "#D95F02"),
-                    labels = c("Female", "Male"))
 
 
 ```
@@ -375,9 +153,7 @@ ggplot(timeline_df_long, aes(x = year, y = count, fill = gender)) +   # Fill col
 
 
 ```{r}
-library(patchwork)
-
-# Combine plots side by side
+# Combine the three plots 
 combined_plot <- pyramid_plot + female_proportion_plot / area_chart + plot_layout(ncol = 2, widths = c(2, 1)) +
   plot_annotation(title = "Trends in Gender Distribution of IMO Contestants", 
   caption = "Tidytuesday week 39 | Graphic by Olaoluwa Gbotoso"
@@ -389,7 +165,6 @@ combined_plot <- pyramid_plot + female_proportion_plot / area_chart + plot_layou
 combined_plot
 
 # Save plot with larger dimensions
-ggsave("combined_plot.png", width = 12, height = 8)
-ggsave("combined_plot1.png", width = 12, height = 8)  # Customize width and height
+ggsave(here("image/combined_plot1.png"), width = 12, height = 8)  # Customize width and height
 ```
 
