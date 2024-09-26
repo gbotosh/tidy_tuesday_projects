@@ -3,6 +3,8 @@ title: "TIDY TUESDAY: SHAKESPEARE PLAYS 2024-09-17"
 author: "Olaoluwa Gbotoso"
 format: html
 editor: visual
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r}
@@ -11,16 +13,12 @@ if(!require("pacman")) install.packages(("pacman"))
 pacman::p_load(tidyverse, here, stringr)
 ```
 
-
-
 ```{r}
 # Load dataset
 hamlet <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-09-17/hamlet.csv')
 macbeth <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-09-17/macbeth.csv')
 romeo_juliet <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-09-17/romeo_juliet.csv')
 ```
-
-
 
 ```{r}
 # Create number of words per dialogue column
@@ -36,7 +34,7 @@ macbeth <- macbeth |>
 # Combining all datasets into one dataframe
 shakespeare_plays <- bind_rows(hamlet, macbeth, romeo_juliet)
 
-# Get total number of words for each character 5top 10)
+# Get total number of words for each character (top 10)
 shakespeare_plays_word_counts <- shakespeare_plays |> 
                                    filter(character != "Stage Directions")  |> 
                                    group_by(play, character) |>   
@@ -45,8 +43,6 @@ shakespeare_plays_word_counts <- shakespeare_plays |>
                                    head(10)
 
 ```
-
-
 
 ```{r}
 # Lolipop Chart
@@ -74,5 +70,5 @@ ggplot(shakespeare_plays_word_counts,
          legend.text = element_text(face = "bold"))
 # Save plot in png format
  ggsave(here("image/shakespeare.png"), width = 10, height = 5)
+ ggsave(here("image/shakespeare_plot.png"))
 ```
-
