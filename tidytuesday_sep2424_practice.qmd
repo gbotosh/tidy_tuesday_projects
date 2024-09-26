@@ -5,13 +5,11 @@ format: html
 editor: visual
 ---
 
-
 ```{r}
 # Load the required packages
 if(!require("pacman")) install.packages(("pacman"))
 pacman::p_load(tidyverse, here, stringr)
 ```
-
 
 ```{r}
 country_results_df <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-09-24/country_results_df.csv')
@@ -22,8 +20,6 @@ timeline_df <- readr::read_csv('https://raw.githubusercontent.com/rfordatascienc
 # write_csv(individual_results_df, "individual_results_df.csv")
 # write_csv(timeline_df, "timeline_df.csv")
 ```
-
-
 
 ```{r}
 head(country_results_df)
@@ -58,8 +54,6 @@ individual_results_df |>
 
 ```
 
-
-
 ```{r}
 gender_by_country_summary <- timeline_df |>
   group_by(country) |>
@@ -71,7 +65,6 @@ gender_by_country_summary <- timeline_df |>
   ungroup() |>
   arrange(desc(total_contestants))
 ```
-
 
 ```{r}
 timeline_long <- pivot_longer(timeline_df, cols = c("male_contestant", "female_contestant"),
@@ -128,9 +121,6 @@ female_proportion_plot <- timeline_df |>
         axis.title.y = element_blank())
 ```
 
-
-
-
 ```{r}
 top_20_countries_by_participants_long <- top_20_countries_by_participants |> 
   pivot_longer(cols = c(male, female), names_to = "gender", values_to = "count")|>
@@ -159,6 +149,7 @@ ggplot(timeline_df_long, aes(x = edition, y = count, fill = gender)) +   # Fill 
                                     axis.ticks = element_blank()) +   # Centre plot title
                               scale_fill_brewer(palette = "Dark2")  # Color palette
 ```
+
 ```{r}
 library(ggplot2)
 library(scales)
@@ -289,6 +280,7 @@ ggplot(timeline_df_long, aes(x = year, y = count, fill = gender)) +   # Fill col
 ggsave("country_by_gender_plot.png", width = 12, height = 8)  # Customize width and height
 
 ```
+
 ```{r}
 library(ggplot2)
 library(scales)
@@ -371,9 +363,6 @@ ggplot(timeline_df_long, aes(x = year, y = count, fill = gender)) +   # Fill col
 
 ```
 
-
-
-
 ```{r}
 library(patchwork)
 
@@ -391,5 +380,32 @@ combined_plot
 # Save plot with larger dimensions
 ggsave("combined_plot.png", width = 12, height = 8)
 ggsave("combined_plot1.png", width = 12, height = 8)  # Customize width and height
+```
+
+
+
+```{r}
+library(ggplot2)
+library(ggthemes)
+options(scipen = 999)  # turns of scientific notations like 1e+40
+
+# Read data
+email_campaign_funnel <- read.csv("https://raw.githubusercontent.com/selva86/datasets/master/email_campaign_funnel.csv")
+
+# X Axis Breaks and Labels 
+brks <- seq(-15000000, 15000000, 5000000)
+lbls = paste0(as.character(c(seq(15, 0, -5), seq(5, 15, 5))), "m")
+
+# Plot
+ggplot(email_campaign_funnel, aes(x = Stage, y = Users, fill = Gender)) +   # Fill column
+                              geom_bar(stat = "identity", width = .6) +   # draw the bars
+                              scale_y_continuous(breaks = brks,   # Breaks
+                                                 labels = lbls) + # Labels
+                              coord_flip() +  # Flip axes
+                              labs(title="Email Campaign Funnel") +
+                              theme_tufte() +  # Tufte theme from ggfortify
+                              theme(plot.title = element_text(hjust = .5), 
+                                    axis.ticks = element_blank()) +   # Centre plot title
+                              scale_fill_brewer(palette = "Dark2")  # Color palette
 ```
 
