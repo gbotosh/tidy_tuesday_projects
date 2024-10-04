@@ -1,0 +1,182 @@
+---
+title: "Chess Game Dataset (Lichess)"
+author: "Olaoluwa Gbotoso"
+format: html
+editor: visual
+---
+
+
+
+```{r}
+# Load the required packages
+if(!require("pacman")) install.packages(("pacman"))
+pacman::p_load(tidyverse, here, ggthemes, scales, patchwork, ggtext)
+```
+
+```{r}
+# Load the data
+chess <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-10-01/chess.csv')
+
+# write.csv(chess, here("data/chess.csv"))
+
+```
+
+
+
+```{r}
+head(chess)
+summary(chess)
+sapply(chess, function(x) sum(is.na(x)))
+```
+
+
+
+```{r}
+chess_count <- chess %>%
+  count(victory_status)
+
+
+chess_count$victory_status <- factor(chess_count$victory_status, 
+  levels = c("resign", "outoftime", "draw", "mate"),
+  labels = c("Resign", "Out of time", "Draw", "Mate")
+)
+
+p1 <- ggplot(chess_count, 
+        aes(x = reorder(victory_status, n), y = n)) + 
+   geom_point(size=5, color = "green") + 
+   geom_segment(aes(x= reorder(victory_status, n), 
+                    xend= reorder(victory_status, n), 
+                    y=0, 
+                    yend= n), lwd = 2, color = "green") + 
+  geom_text(aes(label = n), hjust = -0.4, vjust = 0.5, size = 3) +
+   labs(subtitle = "Breakdown of Chess Game Outcomes by Victory Status",
+        x = "Victory Status", 
+        y = "Count") +
+   theme_tufte() +
+   theme(plot.background = element_rect(fill = "white"),
+                  panel.grid = element_blank(),
+         plot.subtitle = element_text(face = "bold", hjust = 0.5),
+         axis.title.y = element_blank(),
+         axis.text.y = element_blank(),
+         axis.ticks.y = element_blank(),
+         legend.position = "none") 
+  
+
+```
+
+
+
+
+```{r}
+# Retrieve the minimum and maximum values from the 'turns' column to facilitate binning
+turns_min <- min(chess$turns)
+turns_max <- max(chess$turns)
+
+# Define the breakpoints for binning the 'turns' column into five categories
+num_bins <- 5
+turns_breaks <- round(seq(turns_min, turns_max, length.out = num_bins + 1))
+
+# Create custom labels that include the limits
+turns_labels <- paste(head(turns_breaks, -1), tail(turns_breaks, -1), sep = " - ")
+
+# Bin the 'turns' column into categories, ensuring the max value is included
+chess_turns <- chess %>%
+  mutate(turns_category = cut(turns, 
+                               breaks = turns_breaks, 
+                               labels = turns_labels,
+                               include.lowest = TRUE,
+                               right = TRUE)) |>  # right = TRUE ensures max value is included 
+  relocate(turns_category, .after = turns)
+
+# table(chess_turns$turns_category)
+
+```
+
+
+
+
+
+```{r}
+# Second plot: bar plot
+p2 <- chess_turns |> 
+  ggplot(aes(x = turns_category) ) +
+  geom_bar(fill = "blue") +
+  geom_text(stat = "count", aes(label = ..count..), 
+            vjust = -0.5, 
+            hjust = 0.5, size = 3) +
+  ylim(0, 14000)  + # Adjust the limit as needed
+  labs(subtitle = "Distribution of Turns Binned into Five Equal Categories",
+        x = "Turns", 
+        y = "Count") +
+   theme_tufte() +
+   theme(plot.background = element_rect(fill = "white"),
+          panel.border = element_blank(),
+         plot.subtitle = element_text(face = "bold", hjust = 0.5),
+         axis.title.x = element_text(face = "bold"),
+         axis.title.y = element_blank(),
+         axis.text.x = element_text(face = "bold"),
+         axis.text.y = element_blank(),
+         axis.ticks.y = element_blank(),
+         legend.position = "none")
+
+
+
+```
+
+
+
+
+
+
+```{r}
+# Third plot: proportional bar char
+
+# Color palette
+pal_fill <- c(
+  "draw" = "#E41A1C", 
+  "mate" = "#377EB8", 
+  "outoftime" = "#4DAF4A",
+  "resign" = "#FF7F00"
+)
+
+
+sub <- "Each game can conclude with one of the following victory statuses:<br><b><span style='color:#E41A1C;'>draw</span></b>, <b><span style='color:#377EB8;'>mate</span></b>, <b><span style='color:#4DAF4A;'>out of time</span></b>, <b><span style='color:#FF7F00;'>resign</span></b>. "
+
+p3 <- chess_turns |> 
+  ggplot(aes(x = turns_category, fill = victory_status)) +  # Set fill within aes()
+  geom_bar(position = "fill") +
+  labs(subtitle = sub, 
+       x = "Turns") +
+  theme_tufte() +
+  theme(
+     plot.subtitle = element_markdown(face = "bold"),
+    panel.background = element_rect(fill = "white"),  # White background
+    plot.background = element_rect(fill = "white"),   # Background for the plot area
+    panel.border = element_blank(),                    # Remove the border
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks = element_blank(),
+    legend.position = "none"
+  ) +
+  scale_fill_manual(values = pal_fill)  # Use the palette defined earlier
+
+```
+
+
+
+
+```{r}
+# Combine the three plots 
+combined_plot <- p1 + p2 / p3 + plot_layout(ncol = 2) +
+  plot_annotation(title = "Exploring Chess Outcomes: Victory Status and Effects of Number of Turns", 
+  caption = "Tidytuesday week 40 | Graphic by Olaoluwa Gbotoso"
+) & theme(plot.title = element_text(size = 20, hjust = 0.5),
+          plot.caption = element_text(size = 14),
+          plot.background = element_rect(fill = "white", color = NA))
+
+# Display combined plot
+combined_plot
+
+# Save plot with larger dimensions
+ggsave(here("image/combined_plot_oct0124.png"), width = 12, height = 8)  # Customize width and height
+```

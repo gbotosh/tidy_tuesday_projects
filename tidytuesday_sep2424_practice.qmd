@@ -382,8 +382,6 @@ ggsave("combined_plot.png", width = 12, height = 8)
 ggsave("combined_plot1.png", width = 12, height = 8)  # Customize width and height
 ```
 
-
-
 ```{r}
 library(ggplot2)
 library(ggthemes)
@@ -409,3 +407,51 @@ ggplot(email_campaign_funnel, aes(x = Stage, y = Users, fill = Gender)) +   # Fi
                               scale_fill_brewer(palette = "Dark2")  # Color palette
 ```
 
+```{r}
+# Convert time_increment to estimated duration using str_split
+ chess_df1 <- chess %>%
+  mutate(
+    # Split time_increment into two parts
+    split_time = str_split(time_increment, "\\+"),
+    # Extract initial time and increment as numeric values
+    initial_time = as.numeric(map_chr(split_time, 1)),  # First element
+    increment_time = as.numeric(map_chr(split_time, 2)),  # Second element
+    # Calculate estimated duration
+    estimated_duration = initial_time + (40 * increment_time)  # Apply the formula
+  ) |> 
+  head()
+```
+
+```{r}
+# Convert time_increment to estimated duration using str_split
+chess_df <- chess %>%
+  mutate(
+    # Split time_increment into two parts
+    split_time = str_split(time_increment, "\\+"),
+    # Extract initial time and increment directly
+    initial_time = as.numeric(sapply(split_time, `[`, 1)),  # First element
+    increment_time = as.numeric(sapply(split_time, `[`, 2)),  # Second element
+    # Calculate estimated duration
+    estimated_duration = initial_time + (40 * increment_time)  # Apply the formula
+  ) 
+  
+```
+
+```{r}
+# This week's TidyTuesday dataset from Lichess.org includes over 20,000 chess games. Most games ended in checkmate or resignation, with resignations accounting for over half of the victories. Very few games exceeded 140 turns, and only a small number surpassed 210 turns. Among those that did, many ended in "resign" or "out of time," suggesting that longer games often reflect a clear disadvantage for one player.
+```
+
+```{r}
+# Convert time_increment to estimated duration using str_split
+chess_df <- chess %>%
+  mutate(
+    # Split time_increment into two parts
+    split_time = str_split(time_increment, "\\+"),
+    # Extract initial time and increment directly
+    initial_time = as.numeric(sapply(split_time, `[`, 1)),  # First element
+    increment_time = as.numeric(sapply(split_time, `[`, 2)),  # Second element
+    # Calculate estimated duration
+    estimated_duration = initial_time + (40 * increment_time)  # Apply the formula
+  ) 
+  
+```
