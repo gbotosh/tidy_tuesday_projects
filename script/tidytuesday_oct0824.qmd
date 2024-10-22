@@ -1,0 +1,20 @@
+---
+title: "National Park Species"
+author: "Olaoluwa Gbotoso"
+format: html
+editor: visual
+---
+
+
+```{r}
+# Load the required packages
+if(!require("pacman")) install.packages(("pacman"))
+pacman::p_load(tidyverse, here, ggthemes, scales, patchwork, ggtext)
+```
+
+
+```{r}
+# Load the data
+
+```
+

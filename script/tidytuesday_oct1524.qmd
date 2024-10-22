@@ -1,0 +1,167 @@
+---
+title: "Southern Resident Killer Whale Encounter"
+author: "Olaoluwa Gbotoso"
+format: html
+editor: visual
+---
+
+
+
+```{r}
+# Load the required packages
+if(!require("pacman")) install.packages(("pacman"))
+pacman::p_load(tidyverse, here, patchwork, ggthemes, ggtext)
+```
+
+
+
+```{r}
+orcas <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-10-15/orcas.csv')
+ 
+head(orcas)
+```
+
+
+
+
+```{r}
+# Dataframe for radial plot
+# The hour component of "begin_time" is used to classify encounter time into day and night
+
+
+radial_plot_df <- orcas |> 
+  mutate(hour = hour(begin_time)) |> 
+  group_by(hour) |> 
+  summarise(hour_count = n()) |> 
+  filter(!is.na(hour)) |> 
+  mutate(time_of_day = case_when(
+    hour >= 6 & hour < 18 ~ "Day",
+    TRUE ~ "Night"
+  ))
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+```{r}
+# Radial plot
+
+
+# Calculate the ANGLE of the labels
+number_of_bar <- nrow(radial_plot_df)
+angle <-  90 - 360 * (radial_plot_df$hour - 0.5) / number_of_bar  # Adjust angle for label positioning
+ 
+# Calculate the alignment of labels: right or left
+radial_plot_df$hjust <- ifelse(angle < -90, 1, 0)
+ 
+# Flip angle to make them readable
+radial_plot_df$angle <- ifelse(angle < -90, angle + 180, angle)
+
+# Define color palette
+palette_fill <- c("Day" = "#deb221", "Night" = "#2f828a")
+
+radial_plot <- ggplot(radial_plot_df, aes(x = as.factor(hour), y = hour_count, fill = time_of_day)) +
+  
+  # Add the bars
+  geom_bar(stat = "identity") +
+  
+  # Add text labels with proper alignment and angle
+  geom_text(aes(x = hour, y = hour_count + 10, label=sprintf("%d:00", hour), hjust = hjust), 
+            color = "black", fontface = "bold", alpha = 0.6, size = 2.5, 
+            angle = radial_plot_df$angle, inherit.aes = FALSE) +
+  
+  # Set limits for radial plot
+  ylim(-100, 120) +
+  
+  # Add custom subtitle
+  labs(subtitle =  "Hourly Patterns of Encounter Start Times: Day vs. Night") +
+  
+  # Custom theme and axis adjustments
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.subtitle = element_text(face = "bold", size = 12, hjust = 0.5), 
+                                       #
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    plot.margin = margin(t = 0.5, r = 0, b = 0, l = 0, unit = "cm")  # Adjust margin around the plot
+  ) +
+  
+  # Define custom color fill
+  scale_fill_manual(values = palette_fill) +
+  
+  # Apply polar coordinates for the radial plot
+  coord_polar(start = 0)
+
+# Display the plot
+radial_plot
+
+```
+
+```{r}
+
+# Group radial_Plot_df into day and night and summarize the hour_count
+pie_chart_df <- radial_plot_df |> 
+    group_by(time_of_day) |> 
+  summarise(day_night_count = sum(hour_count))  
+
+
+
+# Create the pie chart
+pie_chart_plot <- ggplot(pie_chart_df, aes(x = "", y = day_night_count, fill = time_of_day)) +
+  geom_bar(stat = "identity", width = 1) +
+  
+  # Convert to a pie chart by using polar coordinates
+  coord_polar(theta = "y") +
+  
+  # Add labels
+  geom_text(aes(label = paste0(time_of_day, ": ", day_night_count)),
+            position = position_stack(vjust = 0.5)) +
+  
+  # Custom colors and theme
+  scale_fill_manual(values = c("Day" = "#deb221", "Night" = "#2f828a")) +
+  
+  labs(subtitle = "Overall Proportion of Day vs. Night Encounters") +
+  
+  theme_void() +  # Remove background, grid, and axis
+  theme(legend.position = "none",
+    plot.subtitle = element_text(size = 12, hjust = 0.5, face = "bold")# Center title
+  )
+pie_chart_plot
+```
+
+
+
+
+```{r}
+
+# Combine the two plots: radial_plot and pie_chart_plot
+
+
+# Custom subtitle with HTML formatting for color
+my_title <- "Distribution of Southern Resident Killer Whale Encounters into <br><b><span style='color:#deb221;'>Day</span></b>, and <b><span style='color:#2f828a;'>Night</span></b>"
+ 
+combined_plot <- radial_plot + pie_chart_plot + plot_layout(ncol = 2) +
+  plot_annotation(title = my_title, 
+  caption = "Tidytuesday week 42 | Graphic by Olaoluwa Gbotoso"
+) & theme(plot.title = element_markdown(face = "bold", size = 16, hjust = 0.5),  # Use element_markdown for HTML-styled text
+          plot.caption = element_text(size = 14),
+          plot.background = element_rect(fill =  "#f0f0f0", color = NA))
+
+# Display combined plot
+combined_plot
+
+# Save plot with larger dimensions
+ggsave(here("image/combined_plot_oct1524.png"), width = 12, height = 8)  # Customize width and height
+```
+
