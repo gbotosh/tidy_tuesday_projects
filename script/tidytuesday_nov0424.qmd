@@ -1,0 +1,152 @@
+---
+title: "Democracy and Dictatorship"
+author: "Olaoluwa Gbotoso"
+format: html
+editor: visual
+---
+
+```{r}
+# Load the required packages
+if(!require("pacman")) install.packages(("pacman"))
+pacman::p_load(tidyverse, here, ggthemes, scales, patchwork, ggtext)
+
+```
+
+
+
+```{r}
+democracy_data <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-11-05/democracy_data.csv')
+glimpse(democracy_data)
+
+```
+
+
+
+```{r}
+# Identify democracy to non-democracy and vice versa transitions in succeeding years
+democracy_transitions <- democracy_data %>%
+  arrange(country_name, year) %>%
+  group_by(country_name) %>%
+  mutate(
+    previous_democracy = lag(is_democracy),
+    transition_type = case_when(
+      !is.na(previous_democracy) & previous_democracy == TRUE & is_democracy == FALSE ~ "Democracy to Non-Democracy",
+      !is.na(previous_democracy) & previous_democracy == FALSE & is_democracy == TRUE ~ "Non-Democracy to Democracy",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(transition_type)) %>%
+  ungroup()
+
+```
+
+
+
+
+```{r}
+# Count the number of transitions by year and type
+yearly_transitions <- democracy_transitions %>%
+  group_by(year, transition_type) %>%
+  summarise(count = n(), .groups = "drop")
+
+```
+
+
+
+
+
+```{r}
+# Democratic/non-democratic transition trend plot
+
+sub <- "Transitions Over Time <br><b><span style='color:#00FFFF;'>Non-Democracy to Democracy</span></b> vs.  <b><span style='color:#FFD700;'>Democracy to Non-Democracy</span></b></br>."
+
+
+transitions_trend <- ggplot(yearly_transitions, aes(x = year, y = count, color = transition_type)) +
+  geom_line(size = 1.2) +
+  labs(
+    subtitle =sub,
+    x = "Year",
+    y = "Number of Transitions",
+    color = "Transition Type"
+  ) +
+  scale_color_manual(values = c("Democracy to Non-Democracy" = "#FFD700", # Yellow
+                                "Non-Democracy to Democracy" = "#00FFFF")) + # Cyan
+  theme_tufte(base_family = "sans") +
+  theme(
+    plot.background = element_rect(fill = "black", color = NA),
+    panel.background = element_rect(fill = "black"),
+    panel.grid.major = element_line(color = "gray30"),
+    panel.grid.minor = element_line(color = "gray30"),
+   plot.subtitle = element_markdown(face = "bold", color = "white", hjust = 0.5, size = 12),
+    axis.title = element_text(color = "white"),
+    axis.text = element_text(color = "white"),
+    legend.position = "none"
+  ) 
+```
+
+
+
+```{r}
+# Data processing to get counts of democratic and non-democratic countries per year
+democracy_vs_non_democracy <- democracy_data %>%
+  filter(!is.na(is_democracy)) %>%
+  group_by(year, is_democracy) %>%
+  summarise(num_countries = n(), .groups = "drop")
+
+```
+
+
+
+
+```{r}
+# Plotting the democracy vs non-democracy trend
+
+sub <- "<b><span style='color:#00FFFF;'>Number of Democratic</span></b> vs.  <b><span style='color:#FFD700;'>Non-Democratic Countries</span></b> Over Time."
+
+
+democracy_vs_non_democracy_trend <- ggplot(democracy_vs_non_democracy, aes(x = year, y = num_countries, color = is_democracy)) +
+  geom_line(size = 1.2) +
+  labs(
+    subtitle = sub,
+    y = "Number of Countries",
+    x = "Year",
+    color = "Regime Type"
+  ) +
+  scale_color_manual(
+    values = c("TRUE" = "#00FFFF",   # Cyan for democratic countries
+               "FALSE" = "#FFD700")  # Yellow for non-democratic countries
+  ) +
+  theme_tufte(base_family = "sans") +
+  theme(
+    plot.background = element_rect(fill = "black", color = NA),
+    panel.background = element_rect(fill = "black"),
+    panel.grid.major = element_line(color = "gray30"),
+    panel.grid.minor = element_line(color = "gray30"),
+    plot.subtitle = element_markdown(face = "bold", color = "white", hjust = 0.5, size = 12),
+    axis.title = element_text(color = "white"),
+    axis.text = element_text(color = "white"),
+    legend.position = "none"
+  )
+
+```
+
+
+
+```{r}
+# Using patchwork to combine the two trend plots: transitions_trend and democracy_vs_non_democracy_trend
+
+
+combined_plot <- democracy_vs_non_democracy_trend/transitions_trend +
+  plot_annotation(title = "Democracy in Flux: Transition Patterns and Global Regime Distribution (1950-2020)", 
+  caption = "Tidytuesday week 45 | Graphic by Olaoluwa Gbotoso"
+) & theme(plot.title = element_markdown(face = "bold", size = 16, hjust = 0.5, color = "white"),  
+          plot.caption = element_text(size = 14),
+          plot.background = element_rect(fill =  "black", color = NA))
+
+# Display combined plot
+combined_plot
+
+# Save plot with larger dimensions
+ggsave(here("image/combined_plot_nov0424.png"), width = 12, height = 8)  # Customize width and height
+```
+

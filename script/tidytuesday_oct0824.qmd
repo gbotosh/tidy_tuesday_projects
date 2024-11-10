@@ -9,12 +9,142 @@ editor: visual
 ```{r}
 # Load the required packages
 if(!require("pacman")) install.packages(("pacman"))
-pacman::p_load(tidyverse, here, ggthemes, scales, patchwork, ggtext)
+pacman::p_load(tidyverse, here, ggthemes, scales, patchwork, ggtext, treemapify, shiny, ggforce, waffle, ggalluvial)
 ```
 
 
 ```{r}
 # Load the data
+most_visited_nps_species_data <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-10-08/most_visited_nps_species_data.csv')
+
+write.csv(most_visited_nps_species_data, here("data/most_visited_nps_species_data.csv"))
+```
+
+
+```{r}
+glimpse(most_visited_nps_species_data)
+```
+
+
+```{r}
+# Data Wrangling for Abundance and Park Counts
+abundance_data <- most_visited_nps_species_data %>%
+  filter(!is.na(Abundance)) %>%   # Remove missing abundance data
+  group_by(ParkName, Abundance) %>% 
+  summarize(species_count = n()) %>%   # Count species per park and abundance level
+  ungroup()
+```
+
+```{r}
+# Create a heatmap
+ggplot(abundance_data, aes(x = ParkName, y = Abundance, fill = species_count)) +
+  geom_tile(color = "white") +    # Create heatmap tiles
+  scale_fill_gradient(low = "lightyellow", high = "darkred") +  # Color gradient for species count
+  labs(title = "Species Abundance Across Most Visited National Parks",
+       x = "National Park", y = "Abundance Category", fill = "Species Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for readability
+```
+
+
+```{r}
+ggplot(abundance_data, aes(x = ParkName, y = Abundance, size = species_count)) +
+  geom_point(alpha = 0.7, color = "steelblue") +  # Create bubbles with transparency
+  scale_size(range = c(2, 20), name = "Species Count") +  # Scale bubble size
+  labs(title = "Bubble Chart of Species Abundance Across National Parks",
+       x = "National Park", y = "Abundance Category") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for readability
+```
+
+
+```{r}
+ggplot(abundance_data, aes(x = ParkName, y = Abundance, fill = species_count)) +
+  geom_tile(color = "white") +  # Create heatmap tiles
+  scale_fill_gradient(low = "green", high = "red", name = "Species Count") +  # Green to red gradient
+  geom_text(aes(label = species_count), color = "black", size = 3) +  # Add species count labels
+  labs(title = "Species Abundance Across Most Visited National Parks",
+       subtitle = "Green = More Abundant Species | Red = Fewer Species (Rare)",
+       x = "National Park", y = "Abundance Category") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +  # Rotate x-axis labels for readability
+  scale_y_discrete(limits = c("Abundant", "Common", "Uncommon", "Rare"))  # Reorder y-axis (abundance categories)
+```
+
+```{r}
+# Customized Bubble Chart with Color-Coded Bubbles and Labels
+
+ggplot(abundance_data, aes(x = ParkName, y = Abundance, size = species_count, color = Abundance)) +
+  geom_point(alpha = 0.7) +  # Transparent bubbles for better visibility
+  scale_size(range = c(3, 20), name = "Species Count") +  # Scale bubble size
+  scale_color_manual(values = c("Abundant" = "green", "Common" = "yellow", "Uncommon" = "orange", "Rare" = "red")) +  # Color coding for abundance
+  geom_text(aes(label = species_count), vjust = 1.5, size = 3) +  # Add labels inside bubbles
+  labs(title = "Bubble Chart of Species Abundance Across National Parks",
+       subtitle = "Bubble Size = Species Count | Color = Abundance Category",
+       x = "National Park", y = "Abundance Category") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for readability
+```
+
+```{r}
+# Filter for rare and endangered species
+endangered_species_data <- most_visited_nps_species_data %>%
+  filter(TEStatus != "None" & Abundance == "Rare") %>%
+  group_by(ParkName, Abundance) %>%
+  summarize(species_count = n())
+
+# Create a bubble chart focusing on endangered species
+ggplot(endangered_species_data, aes(x = ParkName, y = Abundance, size = species_count)) +
+  geom_point(alpha = 0.7, color = "red") +  # Highlight endangered species with red
+  scale_size(range = c(3, 20), name = "Endangered Species Count") +  # Scale bubble size
+  labs(title = "Endangered and Rare Species Across National Parks",
+       x = "National Park", y = "Abundance Category") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+# Data Wrangling for Stacked Bar Chart
+abundance_data <- most_visited_nps_species_data %>%
+  filter(!is.na(Abundance)) %>%
+  group_by(ParkName, Abundance) %>%
+  summarize(species_count = n()) %>%
+  ungroup()
+
+# Create a stacked bar chart
+ggplot(abundance_data, aes(x = ParkName, y = species_count, fill = Abundance)) +
+  geom_bar(stat = "identity", position = "stack") +  # Stacked bar chart
+  labs(title = "Proportion of Species Abundance Categories Across National Parks",
+       subtitle = "Breakdown of species count by abundance category in each park",
+       x = "National Park", y = "Species Count", fill = "Abundance Category") +
+  scale_fill_manual(values = c("Abundant" = "green", "Common" = "yellow", "Uncommon" = "orange", "Rare" = "red")) +  # Color code abundance categories
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for readability
+```
+```{r}
+table(most_visited_nps_species_data$Abundance)
+```
+
+```{r}
+
+# Data Wrangling for Alluvial Plot
+alluvial_data <- most_visited_nps_species_data %>%
+  filter(!is.na(Abundance)) %>%
+  group_by(ParkName, Abundance) %>%
+  summarize(species_count = n()) %>%
+  ungroup()
+
+# Create Alluvial Diagram (Sankey Plot)
+ggplot(alluvial_data, aes(axis1 = ParkName, axis2 = Abundance, y = species_count)) +
+  geom_alluvium(aes(fill = Abundance), width = 0.4) +
+  geom_stratum(width = 0.4) +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
+  scale_fill_manual(values = c("Abundant" = "green", "Common" = "yellow", "Uncommon" = "orange", "Rare" = "red")) +
+  labs(title = "Alluvial Diagram of Species Abundance Distribution Across Parks",
+       subtitle = "Flow of species counts across abundance categories and parks",
+       y = "Species Count", x = "Parks and Abundance Categories") +
+  theme_minimal()
 
 ```
+
 

@@ -5,24 +5,17 @@ format: html
 editor: visual
 ---
 
-
-
 ```{r}
 # Load the required packages
 if(!require("pacman")) install.packages(("pacman"))
 pacman::p_load(tidyverse, here, patchwork, ggthemes, ggtext)
 ```
 
-
-
 ```{r}
 orcas <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-10-15/orcas.csv')
  
 head(orcas)
 ```
-
-
-
 
 ```{r}
 # Dataframe for radial plot
@@ -42,15 +35,6 @@ radial_plot_df <- orcas |>
 
 
 ```
-
-
-
-
-
-
-
-
-
 
 ```{r}
 # Radial plot
@@ -140,9 +124,6 @@ pie_chart_plot <- ggplot(pie_chart_df, aes(x = "", y = day_night_count, fill = t
 pie_chart_plot
 ```
 
-
-
-
 ```{r}
 
 # Combine the two plots: radial_plot and pie_chart_plot
@@ -164,4 +145,3 @@ combined_plot
 # Save plot with larger dimensions
 ggsave(here("image/combined_plot_oct1524.png"), width = 12, height = 8)  # Customize width and height
 ```
-
